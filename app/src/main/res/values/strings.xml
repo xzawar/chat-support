@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Support Chat</string>
+
+    <!--
+        OAuth *web* client id used by Google sign-in (client_type 3 in google-services.json).
+        It is empty until you enable Google in Firebase Authentication, add your SHA-1
+        fingerprint, and download the refreshed google-services.json. Until then the Google
+        button shows a setup message instead of failing.
+    -->
+    <!--
+        The Web client (client_type 3) from google-services.json. Credential Manager wants the
+        web client id, not the Android one: passing the Android client fails instantly with no
+        useful message, which looks identical to Google sign-in not being enabled at all.
+    -->
+    <string name="google_web_client_id" translatable="false">671335404750-q3c57d7ba6obihtegcoo81m7mhcm7s4q.apps.googleusercontent.com</string>
+</resources>

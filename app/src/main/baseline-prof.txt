@@ -1,0 +1,111 @@
+# Baseline profile for com.codexce.supportchat
+#
+# WHAT THIS IS
+#
+# A list of methods that ART compiles ahead of time when the APK is installed, instead of
+# interpreting them on the first launch and JIT-compiling them once they get hot. Cold start is
+# the single worst case for interpretation: every class on the launch path is being touched for
+# the very first time, so none of it has had a chance to get hot yet. Precompiling that path is
+# worth roughly 30% off cold start, and it costs nothing at runtime.
+#
+# The androidx.profileinstaller dependency has been in this app for some time and has been doing
+# absolutely nothing, because this file did not exist. AGP bundles src/main/baseline-prof.txt
+# into the APK automatically - no Gradle plugin, no extra configuration.
+#
+# HOW TO REGENERATE IT
+#
+#   ./gradlew :benchmark:pixel6Api34BenchmarkAndroidTest \
+#       -P android.testInstrumentationRunnerArguments.class=\
+#          com.codexce.supportchat.benchmark.BaselineProfileGenerator
+#
+# then copy the generated profile over this file. Regenerate it whenever the startup path
+# changes shape - a new screen before the inbox, a different splash, a change to which
+# ViewModels are constructed at launch. A stale profile is not harmful, it is just progressively
+# less useful, because the rules that no longer match are ignored.
+#
+# FORMAT
+#
+#   H  the method is called during startup ("hot")
+#   S  the method is called from the startup path specifically
+#   P  the method should be compiled ahead of time
+#   L  a class rule rather than a method rule
+#
+# Wildcards are permitted in this human-readable form and are expanded at install time, so the
+# broad rules below stay correct as classes are added.
+
+# ---------------------------------------------------------------------------
+# Process bring-up. Everything here runs before the first frame can be drawn.
+# ---------------------------------------------------------------------------
+HSPLcom/codexce/supportchat/SupportChatApplication;-><init>()V
+HSPLcom/codexce/supportchat/SupportChatApplication;->onCreate()V
+HSPLcom/codexce/supportchat/SupportChatApplication;->installStrictMode()V
+HSPLcom/codexce/supportchat/SupportChatApplication;->trackForeground()V
+HSPLcom/codexce/supportchat/startup/BackendInitializer;-><init>()V
+HSPLcom/codexce/supportchat/startup/BackendInitializer;->create(Landroid/content/Context;)V
+HSPLcom/codexce/supportchat/startup/PreferencesWarmInitializer;-><init>()V
+HSPLcom/codexce/supportchat/startup/PreferencesWarmInitializer;->create(Landroid/content/Context;)V
+HSPLcom/codexce/supportchat/data/Emulators;->connect()V
+
+# ---------------------------------------------------------------------------
+# The activity, the splash handoff, and the theme the first frame is painted in.
+# ---------------------------------------------------------------------------
+HSPLcom/codexce/supportchat/MainActivity;-><init>()V
+HSPLcom/codexce/supportchat/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/codexce/supportchat/MainActivity;->requestHighestRefreshRate()V
+HSPLcom/codexce/supportchat/MainActivity;->readConversationId(Landroid/content/Intent;)Ljava/lang/String;
+HSPLcom/codexce/supportchat/MainActivityKt;->**(**)**
+
+# Preferences are read synchronously before setContent so the first frame has the right theme.
+# This is on the critical path by design and must be compiled.
+HSPLcom/codexce/supportchat/data/AppPreferences;-><init>(Landroid/content/Context;)V
+HSPLcom/codexce/supportchat/data/AppPreferences$Companion;->get(Landroid/content/Context;)Lcom/codexce/supportchat/data/AppPreferences;
+HSPLcom/codexce/supportchat/data/AppPreferences;->**(**)**
+
+# ---------------------------------------------------------------------------
+# Theme and colour. Every composable in the first frame resolves against these.
+# ---------------------------------------------------------------------------
+HSPLcom/codexce/supportchat/ui/theme/**->**(**)**
+Lcom/codexce/supportchat/ui/theme/**;
+
+# ---------------------------------------------------------------------------
+# Navigation and the startup screen. The first thing anybody actually sees.
+# ---------------------------------------------------------------------------
+HSPLcom/codexce/supportchat/ui/navigation/**->**(**)**
+Lcom/codexce/supportchat/ui/navigation/**;
+HSPLcom/codexce/supportchat/ui/screens/StartupScreenKt;->**(**)**
+Lcom/codexce/supportchat/ui/screens/StartupScreenKt**;
+
+# ---------------------------------------------------------------------------
+# The first destination after startup resolves: login for a new install, the
+# inbox for a returning one. Both are on the launch path depending on state, so
+# both are precompiled.
+# ---------------------------------------------------------------------------
+HSPLcom/codexce/supportchat/ui/screens/LoginScreenKt;->**(**)**
+Lcom/codexce/supportchat/ui/screens/LoginScreenKt**;
+HSPLcom/codexce/supportchat/ui/screens/InboxScreenKt;->**(**)**
+Lcom/codexce/supportchat/ui/screens/InboxScreenKt**;
+HSPLcom/codexce/supportchat/ui/screens/MainTabsScreenKt;->**(**)**
+Lcom/codexce/supportchat/ui/screens/MainTabsScreenKt**;
+
+# ---------------------------------------------------------------------------
+# Components drawn in the first frame. Avatars and the tab bar in particular:
+# the inbox draws one avatar per row, so these are the hottest leaf functions
+# in the whole launch.
+# ---------------------------------------------------------------------------
+HSPLcom/codexce/supportchat/ui/components/**->**(**)**
+Lcom/codexce/supportchat/ui/components/**;
+
+# ---------------------------------------------------------------------------
+# Session restore and the first inbox read. These are not on the first-frame
+# path, but they are what StartupScreen is waiting for, so they sit directly on
+# time-to-full-display.
+# ---------------------------------------------------------------------------
+HSPLcom/codexce/supportchat/data/TenantSession;->**(**)**
+HSPLcom/codexce/supportchat/data/SupportRepository;->**(**)**
+HSPLcom/codexce/supportchat/data/OwnerPhoto;->**(**)**
+HSPLcom/codexce/supportchat/viewmodel/AuthViewModel;->**(**)**
+HSPLcom/codexce/supportchat/viewmodel/TenantViewModel;->**(**)**
+HSPLcom/codexce/supportchat/viewmodel/InboxViewModel;->**(**)**
+Lcom/codexce/supportchat/viewmodel/AuthViewModel;
+Lcom/codexce/supportchat/viewmodel/TenantViewModel;
+Lcom/codexce/supportchat/viewmodel/InboxViewModel;

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Matches TgBlack in Color.kt, which is what DarkColors.background actually paints.
+
+        This was #0B141A (the old WhatsApp WaBackground) long after the app moved to the Telegram
+        palette, so every dark-mode cold start showed a dark-teal splash window that snapped to
+        pure black on the first composed frame. Keeping the two in sync is the whole point of the
+        value; if DarkColors.background ever changes, change this with it.
+    -->
+    <color name="window_background">#000000</color>
+</resources>

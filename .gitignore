@@ -1,0 +1,37 @@
+# Secrets. The backend refuses to run without these, and they must never be committed.
+functions/.env
+functions/.env.*
+!functions/.env.example
+functions/service-account*.json
+service-account*.json
+
+# The release signing keystore. Committing it hands anyone the ability to publish an update that
+# installs over the real app, and the repository is public. It lives outside the repo, backed up,
+# and reaches CI only through the KEYSTORE_BASE64 secret.
+*.jks
+*.keystore
+
+# Emulator session data, written by --export-on-exit. Disposable by definition.
+functions/dev/emulator-data/
+firebase-debug.log
+firestore-debug.log
+database-debug.log
+ui-debug.log
+pubsub-debug.log
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+.idea/
+*.iml
+.DS_Store
+
+# google-services.json is project-specific config, not a secret, but it is also not shared here.
+app/google-services.json

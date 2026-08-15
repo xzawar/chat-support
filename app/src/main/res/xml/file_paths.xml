@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What FileProvider is allowed to hand out, and nothing more.
+
+    One entry, matching exactly where UpdateInstaller tells DownloadManager to write:
+    getExternalFilesDir(DIRECTORY_DOWNLOADS), which is this app's own private external directory.
+    external-files-path is the tag for that location; external-path would be shared storage, and
+    root-path would expose the whole filesystem to any process we granted a URI to.
+
+    The path is the subdirectory inside it, so the provider can only ever produce URIs for update
+    APKs we downloaded ourselves.
+-->
+<paths>
+    <external-files-path
+        name="updates"
+        path="Download/" />
+</paths>

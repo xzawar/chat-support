@@ -1,0 +1,112 @@
+SUPPORT CHAT 3.1 - SETUP
+
+1. Deploy the database rules (REQUIRED - nothing works before this):
+     firebase deploy --only database
+   The rules now scope everything to owners/<your uid> and allow public reads of
+   /pairings/<code>. You no longer create any agent record by hand.
+
+2. Open the app, sign in with email or Google. That first sign-in creates
+   owners/<your uid> automatically. Check Account -> Owner ID.
+
+3. Repoint your website widget to owners/<your uid>/conversations and
+   owners/<your uid>/messages. Settings -> Link your website generates a pairing
+   code for the plugin (valid 30 minutes).
+
+4. Google sign-in still needs console work: add an Android OAuth client with your
+   SHA-1 in Firebase Console, download a fresh google-services.json, and put the
+   WEB client id into res/values/strings.xml as google_web_client_id.
+
+5. Push notifications need the Cloud Function, which needs the Blaze plan:
+     npm install --prefix functions
+     firebase deploy --only functions
+
+SUPPORT CHAT AGENT - ANDROID/FIREBASE SETUP
+===========================================
+
+WHAT THIS IS
+A single-module Android demo for support agents. It uses Firebase Email/Password
+Authentication and your Realtime Database directly. The UI is WhatsApp-inspired:
+green inbox header, search and filters, avatars, unread badges, left/right chat
+bubbles, visitor details, assignment, closing, and a round send button.
+
+This is a Spark-plan demo. It does not need Cloud Functions or Blaze. It is not
+the final production security architecture because agent writes go directly to
+RTDB and there is no trusted server, scheduler, rate limiter, or push sender.
+
+1. INSTALL SOFTWARE
+- Install the latest stable Android Studio.
+- In Android Studio choose JDK 17 for Gradle. Do not use JDK 25.
+- Install Android SDK 35 when Android Studio asks.
+
+2. REGISTER THE ANDROID APP
+- Firebase Console > chat-support-1 > Project settings > Your apps.
+- Click Add app > Android.
+- Android package name: com.codexce.supportchat
+- App nickname: Support Chat Agent
+- SHA certificate is not required for Email/Password login.
+- Register app and download google-services.json.
+- Copy it to: android-demo/app/google-services.json
+  It must sit next to app/build.gradle.kts, not in src/main.
+
+3. ENABLE LOGIN
+- Firebase Console > Authentication > Sign-in method.
+- Enable Email/Password.
+- Authentication > Users > Add user.
+- Create the agent email/password you will use in the app.
+- Copy the new user's UID. Do not share the password.
+
+4. CREATE THE AGENT DATABASE RECORD AND SAMPLE CHAT
+- Open sample-data.template.json in a text editor.
+- Replace the text REPLACE_WITH_AUTH_UID with the exact Firebase Auth UID.
+- Firebase Console > Realtime Database > three-dot menu > Import JSON.
+- Select the edited sample-data.template.json.
+- This replaces the current root data. Only do it on this empty demo database.
+
+5. DEPLOY THE LOCKED RULES (NO BLAZE REQUIRED)
+From this android-demo directory run:
+
+  npm install -g firebase-tools
+  firebase login
+  firebase use --add
+
+Select chat-support-1, then run:
+
+  firebase deploy --only database
+
+The included rules deny everything by default. An authenticated user can only
+read and write a tenant when /agents/{uid}/tenantId matches that tenant.
+Never restore global read/write true rules.
+
+6. OPEN AND RUN
+- Open the android-demo folder in Android Studio.
+- If Android Studio says the Gradle wrapper is missing, choose the offered
+  option to use/download Gradle 8.9, then Sync Project with Gradle Files.
+- Wait for dependencies to download.
+- Start an API 35 emulator or attach a phone with USB debugging.
+- Click Run > Run app.
+- Sign in with the Firebase Authentication email and password from step 3.
+- Open Sample Visitor, send a reply, assign it, and close it.
+- Watch the same values change in Realtime Database immediately.
+
+7. TROUBLESHOOTING
+DEVELOPER_ERROR / missing configuration:
+  google-services.json is absent, in the wrong folder, or registered under a
+  package other than com.codexce.supportchat.
+
+PERMISSION_DENIED:
+  The signed-in user's UID is not the key under /agents, tenantId is not demo,
+  or database.rules.json was not deployed.
+
+No conversations:
+  Import the edited sample-data.template.json and confirm this path exists:
+  /tenants/demo/conversations/web_demo_ses_sample
+
+Wrong database:
+  MainActivity.kt intentionally uses:
+  https://chat-support-1-default-rtdb.asia-southeast1.firebasedatabase.app
+
+BUILD LIMITATION
+The project files were syntax-reviewed and JSON/XML validated in the generation
+sandbox, but no Android SDK, Gradle, Kotlin compiler, or Google Maven access was
+available there. Therefore an APK could not be compiled in that environment;
+Android Studio performs the first real build on your computer.

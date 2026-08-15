@@ -1,0 +1,23 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- The "Face" design from the provided PNG -->
+    <group
+        android:translateX="20"
+        android:translateY="20">
+        <!-- Left Eye -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M110,320 a45,55 0,1,1 90,0 a45,55 0,1,1 -90,0" />
+        <!-- Smile/Curve -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M230,280 c0,40 60,40 60,0 c0,-10 -15,-10 -15,0 c0,15 -30,15 -30,0 c0,-10 -15,-10 -15,0 Z" />
+        <!-- Right Eye -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M310,230 a65,65 0,1,1 130,0 a65,65 0,1,1 -130,0" />
+    </group>
+</vector>

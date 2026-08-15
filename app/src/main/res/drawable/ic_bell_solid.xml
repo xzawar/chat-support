@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Filled counterpart of ic_bell, for Settings rows only.
+
+  The outline original is still there and still correct everywhere else. These exist
+  because a 2dp stroke inside a 32dp coloured tile turns to mush: the stroke is a fixed
+  width but the tile shrank, so the glyph loses its counters and reads as a white smudge.
+  A solid shape has no such problem and is what the reference uses in the same place.
+
+  Geometry is original work on a 24x24 grid, not traced from any shipping icon set.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,2.4 a5.8,5.8 0 0 1 5.8,5.8 c0,4.5 1.9,6.1 1.9,6.1 h-15.4 c0,0 1.9,-1.6 1.9,-6.1 a5.8,5.8 0 0 1 5.8,-5.8 z M9.85,15.8 h4.3 a2.15,2.15 0 0 1 -4.3,0 z" />
+</vector>

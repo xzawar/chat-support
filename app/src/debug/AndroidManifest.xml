@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-only overlay.
+
+    The emulator suite speaks plain HTTP on localhost, and Android has blocked cleartext traffic by
+    default since API 28. Without this, every call to the functions emulator fails with
+    CLEARTEXT communication not permitted - which looks like a backend fault and is not one.
+
+    It is confined to src/debug so the release manifest is untouched: a production build still
+    refuses cleartext everywhere, including to a development machine.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>

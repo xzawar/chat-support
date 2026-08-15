@@ -1,0 +1,55 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="160dp"
+    android:height="160dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:pathData="M38,256A218,218 0 1,0 474,256A218,218 0 1,0 38,256Z"
+        android:strokeWidth="0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="194.96"
+                android:centerY="160.08"
+                android:gradientRadius="370.6">
+                <item android:offset="0" android:color="#FFCFA6" />
+                <item android:offset="0.55" android:color="#FFAD6E" />
+                <item android:offset="1" android:color="#FF9440" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M202,222A30,34 0 1,0 262,222A30,34 0 1,0 202,222Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M223,224A13,13 0 1,0 249,224A13,13 0 1,0 223,224Z"
+        android:fillColor="#141414" />
+    <path
+        android:pathData="M252,222A30,34 0 1,0 312,222A30,34 0 1,0 252,222Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M265,224A13,13 0 1,0 291,224A13,13 0 1,0 265,224Z"
+        android:fillColor="#141414" />
+    <path
+        android:pathData="M247,300A9,11 0 1,0 265,300A9,11 0 1,0 247,300Z"
+        android:fillColor="#141414" />
+    <group android:rotation="-18" android:pivotX="206" android:pivotY="158">
+        <path
+            android:pathData="M 184 158 Q 206 134 228 158"
+            android:strokeColor="#141414"
+            android:strokeWidth="13"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000" />
+    </group>
+    <group android:rotation="14" android:pivotX="308" android:pivotY="152">
+        <path
+            android:pathData="M 286 152 Q 308 128 330 152"
+            android:strokeColor="#141414"
+            android:strokeWidth="13"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000" />
+    </group>
+</vector>

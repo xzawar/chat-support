@@ -1,0 +1,198 @@
+// Realtime Database rules. Live chat only; everything persistent lives in Firestore.
+// RTDB rules cannot read Firestore, so ownership is mirrored to chats/{tenantId}/ownerUid.
+// That node is create-once and then immutable, and only the uid that wrote it may rewrite it.
+// Expiry is NOT enforced here: the owner is already authorised to read every conversation in
+// their own tenant, so retention is data hygiene, not an access boundary. The app filters
+// expired rows out of the inbox and prunes them. See README-FIREBASE-ONLY.md.
+//
+// NEW: paired browsers (Support Chat Web).
+// There is no server, so nothing can mint a custom token for the web console. Instead the
+// browser signs in anonymously and the OWNER writes its uid into chats/{tenantId}/sessions.
+// Every rule that used to read "ownerUid === auth.uid" now reads "owner OR a uid listed under
+// sessions", which is what gives a paired laptop exactly the owner's reach and nothing wider.
+// Only the owner can add a session, so a browser can never grant itself access. Deleting the
+// session node revokes the browser on its very next read.
+//
+// Comments must be // lines, not a "//" key: the deploy parser rejects any top-level key
+// other than "rules".
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "pairing": {
+      "$sessionId": {
+        // The id is 22 random characters and the parent is unlistable, so it cannot be
+        // enumerated. Read is open to any signed-in client because the phone has to be able to
+        // look up a session it has only just scanned.
+        ".read": "auth != null",
+
+        // Two legal writes and nothing else:
+        //  1. the browser creates its own waiting session, and
+        //  2. an OWNER approves a waiting session, naming a tenant they actually own.
+        ".write": "auth != null && ((!data.exists() && newData.child('webUid').val() === auth.uid && newData.child('status').val() === 'waiting') || (data.exists() && !newData.exists()) || (data.exists() && data.child('status').val() === 'waiting' && newData.child('webUid').val() === data.child('webUid').val() && newData.child('status').val() === 'approved' && root.child('chats').child(newData.child('tenantId').val()).child('ownerUid').val() === auth.uid))",
+
+        ".validate": "newData.hasChildren(['webUid', 'status', 'createdAt'])",
+
+        "webUid": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "status": { ".validate": "newData.val() === 'waiting' || newData.val() === 'approved'" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "expiresAt": { ".validate": "newData.isNumber()" },
+        "tenantId": { ".validate": "newData.isString() && newData.val().length > 0" },
+        // Echoed back by the phone from the QR. The browser compares it against the value it
+        // generated and refuses the pairing if they differ.
+        "secret": { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "label": { ".validate": "newData.isString() && newData.val().length <= 120" },
+        "ua": { ".validate": "newData.isString() && newData.val().length <= 300" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "chats": {
+      "$tenantId": {
+        "ownerUid": {
+          ".read": "auth != null",
+          ".write": "auth != null && newData.val() === auth.uid && (!data.exists() || data.val() === auth.uid)",
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+
+        "sessions": {
+          // Only the owner may list the paired browsers.
+          ".read": "auth != null && root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid",
+
+          "$sessionUid": {
+            // A browser may read its own grant, which is how it checks it is still paired.
+            ".read": "auth != null && ($sessionUid === auth.uid || root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid)",
+
+            // The owner grants and revokes. A browser may only ever delete itself.
+            ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || ($sessionUid === auth.uid && !newData.exists()))",
+
+            ".validate": "newData.hasChildren(['grantedAt'])",
+
+            "grantedAt": { ".validate": "newData.isNumber()" },
+            "label": { ".validate": "newData.isString() && newData.val().length <= 160" },
+            "lastSeenAt": {
+              // The browser keeps its own heartbeat warm so the phone can show "last used".
+              ".write": "auth != null && ($sessionUid === auth.uid || root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid)",
+              ".validate": "newData.isNumber()"
+            },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "conversations": {
+          ".read": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists())",
+          ".indexOn": ["lastMessage/at", "status", "assignedAgentUid"],
+
+          "$conversationId": {
+            ".read": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || data.child('visitorUid').val() === auth.uid)",
+
+            ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || (!data.exists() && newData.child('visitorUid').val() === auth.uid))",
+
+            ".validate": "newData.hasChildren(['visitorUid', 'websiteId', 'status', 'createdAt'])",
+
+            "visitorUid": {
+              ".validate": "newData.isString() && newData.val().length > 0 && (!data.exists() || data.val() === newData.val())"
+            },
+            "websiteId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 128"
+            },
+            "status": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists())",
+              ".validate": "newData.val() === 'pending' || newData.val() === 'open' || newData.val() === 'closed'"
+            },
+            "assignedAgentUid": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists())",
+              ".validate": "newData.isString()"
+            },
+            "keepChat": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists())",
+              ".validate": "newData.isBoolean()"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber() && (!data.exists() || data.val() === newData.val())"
+            },
+            "startedAt": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists())",
+              ".validate": "newData.isNumber()"
+            },
+
+            "expiresAt": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || root.child('chats').child($tenantId).child('conversations').child($conversationId).child('visitorUid').val() === auth.uid)",
+              ".validate": "newData.isNumber()"
+            },
+
+            // The read receipt the phone and the browser share. Whichever surface opens the
+            // thread first writes zero here, and the other one redraws off the same event.
+            "unread": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || root.child('chats').child($tenantId).child('conversations').child($conversationId).child('visitorUid').val() === auth.uid)",
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "unreadForVisitor": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || root.child('chats').child($tenantId).child('conversations').child($conversationId).child('visitorUid').val() === auth.uid)",
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+
+            "lastMessage": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || root.child('chats').child($tenantId).child('conversations').child($conversationId).child('visitorUid').val() === auth.uid)",
+              "text": {
+                ".validate": "newData.isString() && newData.val().length <= 4000"
+              },
+              "sender": {
+                ".validate": "newData.val() === 'visitor' || newData.val() === 'agent' || newData.val() === 'system'"
+              },
+              "at": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": { ".validate": false }
+            },
+
+            "visitor": {
+              "name": { ".validate": "newData.isString() && newData.val().length <= 120" },
+              "email": { ".validate": "newData.isString() && newData.val().length <= 320" },
+              "pageUrl": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+              "country": { ".validate": "newData.isString() && newData.val().length <= 8" },
+              "userAgent": { ".validate": "newData.isString() && newData.val().length <= 512" },
+              "$other": { ".validate": false }
+            },
+
+            "$other": { ".validate": false }
+          }
+        },
+
+        "messages": {
+          "$conversationId": {
+            ".read": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || root.child('chats').child($tenantId).child('conversations').child($conversationId).child('visitorUid').val() === auth.uid)",
+
+            ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists())",
+
+            ".indexOn": ["createdAt"],
+
+            "$messageId": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || (!data.exists() && root.child('chats').child($tenantId).child('conversations').child($conversationId).child('visitorUid').val() === auth.uid && root.child('chats').child($tenantId).child('conversations').child($conversationId).child('status').val() !== 'closed' && newData.child('sender').val() === 'visitor'))",
+
+              ".validate": "newData.hasChildren(['sender', 'text', 'createdAt'])",
+
+              "sender": {
+                ".validate": "newData.val() === 'visitor' || newData.val() === 'agent' || newData.val() === 'system'"
+              },
+              "text": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 4000"
+              },
+              "createdAt": {
+                ".validate": "newData.isNumber()"
+              },
+              // Stamped by whichever surface displays the message first.
+              "readAt": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": { ".validate": false }
+            }
+          }
+        },
+
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

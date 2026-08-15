@@ -1,0 +1,33 @@
+{
+  "name": "support-chat-functions",
+  "description": "Trusted backend for Support Chat. Firestore = business data, RTDB = chat only. Deploying to Cloud Functions needs the Blaze plan; the emulator suite does not.",
+  "main": "index.js",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "seed": "node seed-cli.js",
+    "check": "node -e \"require('./index.js'); console.log('loaded ok')\"",
+    "emulators": "cd .. && firebase emulators:start --export-on-exit=./functions/dev/emulator-data",
+    "emulators:import": "cd .. && firebase emulators:start --import=./functions/dev/emulator-data --export-on-exit=./functions/dev/emulator-data",
+    "seed:emulator": "node dev/seed-emulator.js --emulators=localhost",
+    "test": "npm run test:offline",
+    "test:offline": "node test/offline/run.js",
+    "test:rules": "node --test test/rules.emulator.test.js",
+    "test:emulator": "cd .. && firebase emulators:exec --only firestore,database \"cd functions && npm run test:rules\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.12.2"
+  }
+}

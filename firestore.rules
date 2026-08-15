@@ -1,0 +1,228 @@
+rules_version = '2';
+
+// Support chat — Firestore rules.
+//
+// There is no server any more: Auth + Firestore + RTDB only. Every rule below re-derives
+// ownership from tenants/{tenantId}.ownerUid, so a client can never widen its own access by
+// sending a different tenantId. There are no custom claims to go stale.
+//
+// Known limitation, on purpose: rules cannot read HTTP headers, so the Origin/Referer check the
+// old Express widget proxy did is gone. See README-FIREBASE-ONLY.md.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function tenantDoc(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)).data;
+    }
+
+    function isOwner(tenantId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/tenants/$(tenantId))
+        && tenantDoc(tenantId).ownerUid == request.auth.uid;
+    }
+
+    // A typed email is never proof. emailVerified may only be true when the signed-in provider
+    // itself vouched for that exact address (Google sign-in), never when the visitor typed it.
+    function providerVerified(email) {
+      return signedIn()
+        && 'email' in request.auth.token
+        && 'email_verified' in request.auth.token
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() == email.lower();
+    }
+
+    // ------------------------------------------------------------------ owners
+    // One tenant per owner uid. The document's existence IS the lock, which is what the old
+    // POST /v1/bootstrap eligibility check did server-side. Create-once, then frozen.
+    match /owners/{ownerUid} {
+      allow get: if signedIn() && request.auth.uid == ownerUid;
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.auth.uid == ownerUid
+        && request.resource.data.keys().hasOnly(['tenantId'])
+        && request.resource.data.tenantId is string
+        && request.resource.data.tenantId.size() > 0;
+
+      allow update, delete: if false;
+    }
+
+    // ----------------------------------------------------------------- tenants
+    match /tenants/{tenantId} {
+      // The app resolves its tenant with where('ownerUid','==',uid). list is allowed only
+      // because every returned document still has to satisfy this same condition.
+      allow get, list: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if signedIn()
+        && request.resource.data.tenantId == tenantId
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.email is string
+        && request.resource.data.websiteCount == 0
+        && request.resource.data.status in ['active', 'inactive']
+        && request.resource.data.features is list
+        // Same transaction has to take the owners/{uid} lock. get()/exists() see the
+        // pre-transaction state and the transaction aborts if it changed underneath, so an
+        // owner who already has a tenant cannot create a second one.
+        && !exists(/databases/$(database)/documents/owners/$(request.auth.uid));
+
+      allow update: if isOwner(tenantId)
+        // Identity and ownership are immutable once written.
+        && request.resource.data.tenantId == resource.data.tenantId
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.status in ['active', 'inactive']
+        && request.resource.data.features is list
+        // websiteCount may only ever move by one step, and only inside the website transaction.
+        && request.resource.data.websiteCount is int
+        && request.resource.data.websiteCount >= 0
+        && request.resource.data.websiteCount <= resource.data.websiteCount + 1;
+
+      allow delete: if false;
+
+      // -------------------------------------------------------------- websites
+      match /websites/{websiteId} {
+        allow read: if isOwner(tenantId);
+
+        // Exactly one website per tenant. The counter has to be free when the transaction
+        // reads it; two simultaneous creates therefore cannot both commit.
+        allow create: if isOwner(tenantId)
+          && request.resource.data.domain is string
+          && request.resource.data.domain.size() > 0
+          && request.resource.data.active == true
+          && tenantDoc(tenantId).websiteCount == 0;
+
+        allow update, delete: if isOwner(tenantId);
+      }
+
+      // ----------------------------------------------------------------- leads
+      match /leads/{leadId} {
+        allow read: if isOwner(tenantId);
+        allow delete: if isOwner(tenantId);
+
+        // The visitor writes its own lead directly. leadId is sha256(websiteId + lowercased
+        // email) computed client-side, so the same visitor always lands on the same document.
+        allow create: if signedIn()
+          && request.resource.data.email is string
+          && request.resource.data.email.size() > 0
+          && request.resource.data.email.size() <= 320
+          && request.resource.data.websiteId is string
+          && request.resource.data.source in ['manual', 'google']
+          && request.resource.data.conversationCount is int
+          && request.resource.data.conversationCount >= 0
+          && request.resource.data.conversationIds is list
+          && (request.resource.data.emailVerified == false
+              || providerVerified(request.resource.data.email));
+
+        allow update: if signedIn()
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.websiteId == resource.data.websiteId
+          // conversationCount / conversationIds grow by at most one per write, which is the
+          // "only if this conversationId is not already present" rule the server used to run.
+          && request.resource.data.conversationCount >= resource.data.conversationCount
+          && request.resource.data.conversationCount <= resource.data.conversationCount + 1
+          && request.resource.data.conversationIds.size() >= resource.data.conversationIds.size()
+          && request.resource.data.conversationIds.size() <= resource.data.conversationIds.size() + 1
+          // Verification can never be granted by a plain write.
+          && (request.resource.data.emailVerified == resource.data.emailVerified
+              || providerVerified(request.resource.data.email));
+      }
+
+      // --------------------------------------------------------------- devices
+      // FCM registrations. Owner only, both ways.
+      match /devices/{deviceId} {
+        allow read, write: if isOwner(tenantId);
+      }
+
+      // ------------------------------------------------------- email templates
+      match /emailTemplates/{templateId} {
+        allow read, write: if isOwner(tenantId);
+      }
+    }
+
+    // ----------------------------------------------------------- public tenant
+    // The only tenant fields a visitor is allowed to see: enough to decide whether to draw the
+    // widget, and nothing about the owner. The real gate is the RTDB write rule, not this.
+    match /publicTenants/{tenantId} {
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow create, update: if isOwner(tenantId)
+        && request.resource.data.keys().hasOnly(['status', 'features', 'companyName', 'logoUrl'])
+        && request.resource.data.status in ['active', 'inactive']
+        && request.resource.data.features is list;
+
+      allow delete: if isOwner(tenantId);
+    }
+
+    // --------------------------------------------------------------- api keys
+    // The document id IS the key, so the widget can resolve its tenant with a single get().
+    // list is refused: it would hand every key in the project to anyone who asked.
+    match /apiKeys/{apiKey} {
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['tenantId', 'websiteId', 'domain', 'active', 'createdAt'])
+        && isOwner(request.resource.data.tenantId)
+        && request.resource.data.active == true;
+
+      // Rotation is delete-old + create-new in one transaction, so a key is never edited in
+      // place and the old key stops resolving the moment the new one exists.
+      allow update: if false;
+      allow delete: if signedIn() && isOwner(resource.data.tenantId);
+    }
+
+    // ------------------------------------------------------------- link codes
+    // A short, human-typeable code the WordPress plugin exchanges for its API key over the
+    // unauthenticated REST API. get is public because the plugin has no Firebase account at all;
+    // list is refused, so codes can never be enumerated; and the only write anyone can make is the
+    // single flip of used to true. A code is valid for ten minutes and cannot be reused.
+    match /linkCodes/{code} {
+      allow get: if true;
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['apiKey', 'tenantId', 'websiteId', 'domain', 'createdAt', 'expiresAt', 'used'])
+        && isOwner(request.resource.data.tenantId)
+        && request.resource.data.used == false
+        && request.resource.data.expiresAt is timestamp;
+
+      // Burning the code. Unauthenticated on purpose: the plugin does this straight after it
+      // reads the key. Expired or already-used codes are refused here, not just in the client.
+      allow update: if resource.data.used == false
+        && request.time < resource.data.expiresAt
+        && request.resource.data.used == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used']);
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------- coupons
+    // 100%-off activation only. Single use is enforced here: used may only go false -> true.
+    match /coupons/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow update: if signedIn()
+        && resource.data.used == false
+        && request.resource.data.used == true
+        && request.resource.data.planId == resource.data.planId
+        && request.resource.data.keys().hasOnly(['planId', 'used']);
+
+      allow create, delete: if false;
+    }
+
+    // ------------------------------------------------------------------ plans
+    // Catalogue. Readable by any signed-in client, writable only from the console.
+    match /plans/{planId} {
+      allow get, list: if signedIn();
+      allow write: if false;
+    }
+
+    // Everything not named above is denied, because Firestore denies by default.
+  }
+}

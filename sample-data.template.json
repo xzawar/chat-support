@@ -1,0 +1,60 @@
+{
+  "_readme": [
+    "Reference shape only, for a manual RTDB import in the Firebase console. It is not needed for",
+    "local development: run 'npm run seed:emulator' from functions/ instead, which creates the owner,",
+    "the tenant, the website and its API key, the plan catalogue and a sample chat in one command.",
+    "Chat lives in RTDB under chats/{tenantId}; everything else (tenants, websites, plans, coupons,",
+    "leads, devices, email templates) lives in Firestore and cannot be imported from this file.",
+    "Replace tnt_dev with your tenant id. All client writes to RTDB are denied by the rules, so this",
+    "data can only be placed here by the console or by the trusted backend."
+  ],
+  "chats": {
+    "tnt_dev": {
+      "conversations": {
+        "conv_sample": {
+          "id": "conv_sample",
+          "tenantId": "tnt_dev",
+          "websiteId": "web_dev",
+          "websiteDomain": "localhost",
+          "status": "open",
+          "createdAt": 1735689600000,
+          "startedAt": 1735689620000,
+          "expiresAt": 1735776000000,
+          "unread": 1,
+          "visitor": {
+            "name": "Sample Visitor",
+            "email": "visitor@example.test"
+          },
+          "lastMessage": {
+            "text": "Can you explain the starter plan?",
+            "at": 1735689700000,
+            "sender": "visitor"
+          }
+        }
+      },
+      "messages": {
+        "conv_sample": {
+          "msg_1": {
+            "id": "msg_1",
+            "sender": "system",
+            "text": "Chat started.",
+            "createdAt": 1735689600000
+          },
+          "msg_2": {
+            "id": "msg_2",
+            "sender": "visitor",
+            "text": "Can you explain the starter plan?",
+            "createdAt": 1735689700000
+          },
+          "msg_3": {
+            "id": "msg_3",
+            "sender": "agent",
+            "senderUid": "REPLACE_WITH_OWNER_UID",
+            "text": "Of course. It covers one website and unlimited chats.",
+            "createdAt": 1735689760000
+          }
+        }
+      }
+    }
+  }
+}

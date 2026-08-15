@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Required so UiAutomator can see the app's package on Android 11 and above. Without it,
+        package visibility filtering hides com.codexce.supportchat from this process and every
+        benchmark fails with a package-not-found error that looks like the app is not installed
+        when it plainly is.
+    -->
+    <queries>
+        <package android:name="com.codexce.supportchat" />
+    </queries>
+
+    <application />
+
+</manifest>

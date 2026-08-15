@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The only colour this file needs to define.
+
+        It is the window background for both Theme.SupportChat and the splash window, so the
+        launcher tap, the splash, and the first composed frame all paint the same value and the
+        handover is invisible. Overridden in values-night.
+
+        The two adaptive-icon background colours that used to live here were deleted: there is no
+        mipmap-anydpi-v26 in this project, so nothing ever referenced them. The launcher uses the
+        raster mipmaps directly.
+    -->
+    <color name="window_background">#FFFFFF</color>
+</resources>

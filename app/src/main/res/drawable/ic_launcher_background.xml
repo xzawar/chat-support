@@ -1,0 +1,17 @@
+<!--
+    Flat BrandFill, not a gradient.
+
+    This was a linear gradient from #51C9FD to #4AA7F7, which was the last gradient left in the
+    project after they were removed everywhere else, and it was the wrong blue besides. The
+    supplied artwork is a flat #69C5FF tile, so any ramp behind it shows as a seam where the
+    foreground ends.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M0,0h108v108h-108z"
+        android:fillColor="#FFFFFF" />
+</vector>

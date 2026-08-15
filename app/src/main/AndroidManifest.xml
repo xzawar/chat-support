@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Android 13+ requires this at runtime; it is requested after login, not at first launch. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Lets the app ask Android to stop throttling it, which is what keeps pushes instant in Doze. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!--
+        In-app updates. The app is distributed as an APK rather than through Play, so it checks a
+        manifest on startup and installs the newer build itself. From Android 8 this permission is
+        only half of it: the user must additionally allow this specific app to install packages,
+        which is a Settings screen rather than a runtime dialog. UpdateInstaller.canInstall checks
+        that and sends them there before downloading anything.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!--
+        The persistent connection. A foreground service is the only supported way to keep a
+        socket open once the app leaves the screen; specialUse rather than dataSync because
+        Android 15 caps dataSync at six hours per day, which would silence the app overnight.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+        enableOnBackInvokedCallback is false, and it stays false. Read this before changing it.
+
+        Android 14+ peels the current screen away and previews the previous one while the back
+        gesture is still held, then snaps back if you release without completing it. That is
+        predictive back, and it has now been rejected three times: as "the page reverses while I
+        am still holding it", then as a preview that never appeared, then as a side animation
+        that only ran after release.
+
+        It was briefly true, on the theory that navigation-compose could seek its own pop
+        transitions against the finger and make the preview deliberate rather than generic. It
+        can, and it did, and the result was still not wanted. The whole feature is off.
+
+        With this false, the system offers no seekable gesture at all. Back is an ordinary
+        committed animation and is the exact mirror of the forward one, both defined in
+        NavGraph.kt. Do not set this true and do not add a PredictiveBackHandler; a handler
+        additionally steals the gesture from NavHost, which is its own separate bug.
+    -->
+    <!--
+        hardwareAccelerated is true by default for targetSdk 14 and above, so this was already
+        on. It is declared explicitly anyway: it is a stated acceptance criterion, and an
+        implicit default is not something anyone can verify by reading the manifest.
+    -->
+    <application
+        android:hardwareAccelerated="true"
+        android:name=".SupportChatApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="false"
+        android:theme="@style/Theme.SupportChat.Starting">
+
+        <!--
+            Lets Macrobenchmark and Perfetto attach to a release build.
+
+            Startup can only be measured on the build people actually run. A debug build is not
+            a slower version of the release build, it is a different one: no R8, no resource
+            shrinking, and the JIT running interpreted code because the baseline profile has not
+            been applied. Numbers taken from it are not merely pessimistic, they are unrelated.
+
+            android:shell="true" allows profiling from adb without making the app debuggable, so
+            this can ship. The only thing it grants is trace attachment.
+        -->
+        <profileable
+            android:shell="true"
+            tools:targetApi="29" />
+
+        <!--
+            Cold-start fix: stop Analytics collecting during the launch window.
+
+            firebase-analytics registers its own initialisation and starts a measurement session
+            as the process comes up, which lands squarely in bindApplication - screen class
+            registration, a session id, and a disk write, none of which any first frame depends
+            on. Deactivating collection here means the SDK still links and can be switched on
+            later at runtime, but it does nothing at all during startup.
+
+            deactivated, not merely disabled: the _deactivated flag is the one that also
+            suppresses the automatic session and screen-view reporting, whereas
+            firebase_analytics_collection_enabled=false leaves that machinery wired up.
+        -->
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true" />
+
+        <!--
+            One provider instead of several.
+
+            Every library that bootstraps itself through a ContentProvider costs a class load and
+            a provider installation on the main thread before Application.onCreate runs. App
+            Startup runs ours as plain objects behind this single provider. tools:node="merge"
+            because profileinstaller declares the same provider and its initializer entry has to
+            survive the merge - overwriting it would silently switch off baseline profile
+            installation, which is the single largest startup win in this release.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="com.codexce.supportchat.startup.BackendInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="com.codexce.supportchat.startup.PreferencesWarmInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
+        <!--
+            Hands the downloaded APK to the system installer.
+
+            The installer is a different process, so it cannot read a file inside our private
+            directory without a granted content:// URI - and passing a file:// URI across that
+            boundary has thrown FileUriExposedException since API 24, which is this app's minSdk.
+
+            A distinct authority (.updates, not .fileprovider) so this provider only ever exposes
+            what res/xml/file_paths.xml describes: the single Download/ subdirectory of the app's
+            own external files dir. exported="false" with grantUriPermissions="true" is the correct
+            pair - nobody can query this provider, and access is only ever granted per-URI, for as
+            long as the install intent lives.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!--
+            MainActivity intentionally has no LAUNCHER intent-filter. The alias below owns the
+            launcher entry, which keeps the launcher's component name stable if MainActivity is
+            ever renamed or moved.
+
+            There used to be a second alias, .LogoIconAlias, for switching the icon from
+            Settings > App icon. It was deleted: ic_launcher_logo.png and ic_launcher_logo_round
+            were byte-identical to ic_launcher.png and ic_launcher_round at every density, so the
+            switch produced no visible change, and no Kotlin ever enabled it. If an alternate icon
+            is wanted later, add the alias back WITH DIFFERENT ARTWORK and remember that exactly
+            one alias must be enabled at a time; disabling both makes the app unlaunchable.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity-alias
+            android:name=".MonoIconAlias"
+            android:targetActivity=".MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <service
+            android:name=".notifications.MessageWatchService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Maintains a live connection to the support inbox so incoming visitor messages are delivered without waiting on push infrastructure." />
+        </service>
+
+        <receiver
+            android:name=".notifications.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Push. onNewToken stores the token under agents/{uid}/devices/{deviceId}. -->
+        <service
+            android:name=".notifications.SupportMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="support_messages" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_nav_chat_filled" />
+
+    </application>
+
+</manifest>

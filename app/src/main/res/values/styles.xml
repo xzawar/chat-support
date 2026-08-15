@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.SupportChat" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!--
+        The launch theme. Owns the window from the launcher tap until the first composed frame,
+        then hands the activity over to Theme.SupportChat through postSplashScreenTheme, which
+        installSplashScreen() applies in onCreate. Nothing after that point can tell the app
+        started on a different theme.
+
+        There is deliberately no values-night copy of this style. Both values it references are
+        already night-aware: @color/window_background is overridden in values-night/colors.xml,
+        and @style/Theme.SupportChat is overridden in values-night/styles.xml. Duplicating the
+        style here would create a second place to forget to update.
+
+        windowSplashScreenBackground is window_background rather than a brand colour, so the
+        handover to StartupScreen, which paints colorScheme.background, is invisible. Any other
+        value would read as a one-frame flash of the wrong colour.
+
+        (No double hyphens anywhere in this comment: XML forbids them inside comments, and an
+        editor that let one through would break resource parsing for the whole file.)
+    -->
+    <style name="Theme.SupportChat.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.SupportChat</item>
+    </style>
+
+</resources>

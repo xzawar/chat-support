@@ -1,0 +1,30 @@
+<!--
+    Traced from the delivered computer.png.
+
+    A monitor, not a globe. "Link a computer" used to borrow the globe from "Link your website",
+    which made the two rows read as the same action; the pairing screen is about this machine,
+    not about a domain. Stroke-based and 2dp to match the rest of the generated set.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path
+        android:pathData="M3.6,4 L20.4,4 A1.6,1.6 0 0 1 22,5.6 L22,15.4 A1.6,1.6 0 0 1 20.4,17 L3.6,17 A1.6,1.6 0 0 1 2,15.4 L2,5.6 A1.6,1.6 0 0 1 3.6,4 Z"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M9.2,17 L9.2,19.6 M14.8,17 L14.8,19.6"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M7,20.4 L17,20.4"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

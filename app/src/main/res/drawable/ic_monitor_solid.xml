@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Filled counterpart of ic_monitor, for Settings rows only.
+
+  The outline original is still there and still correct everywhere else. These exist
+  because a 2dp stroke inside a 32dp coloured tile turns to mush: the stroke is a fixed
+  width but the tile shrank, so the glyph loses its counters and reads as a white smudge.
+  A solid shape has no such problem and is what the reference uses in the same place.
+
+  Geometry is original work on a 24x24 grid, not traced from any shipping icon set.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M3.4,4.0 h17.2 a1.7,1.7 0 0 1 1.7,1.7 v9.9 a1.7,1.7 0 0 1 -1.7,1.7 h-17.2 a1.7,1.7 0 0 1 -1.7,-1.7 v-9.9 a1.7,1.7 0 0 1 1.7,-1.7 z M9.6,18.4 h4.8 l0.35,1.7 h-5.5 z M7.4,20.0 h9.2 a0.95,0.95 0 0 1 0,1.9 h-9.2 a0.95,0.95 0 0 1 0,-1.9 z" />
+</vector>

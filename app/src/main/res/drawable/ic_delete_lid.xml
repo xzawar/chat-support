@@ -1,0 +1,26 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!--
+      Outer group buys headroom. The lid bar sat flush against the top of the 24x24 grid, so the
+      instant it rotated, the raised end left the canvas and was cut off. Scaling the artwork to
+      80% about the centre and dropping it 2 units leaves clear space above the bar for the swing.
+      The body drawable carries the IDENTICAL transform, so the two still share one grid and the
+      join between lid and body stays invisible at rest.
+    -->
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="0.8"
+        android:scaleY="0.8"
+        android:translateY="2">
+        <group android:translateX="-16" android:translateY="-17">
+            <path
+                android:fillColor="#FF000000"
+                android:fillType="evenOdd"
+                android:pathData="M23 22h-4.008c-0.536 0-0.992 0.448-0.992 1 0 0.556 0.444 1 0.992 1h18.016c0.536 0 0.992-0.448 0.992-1 0-0.556-0.444-1-0.992-1h-4.008v-1c0-1.653-1.343-3-3-3h-3.999c-1.652 0-3 1.343-3 3v1z M25 21c0-0.552 0.451-1 0.991-1h4.018c0.547 0 0.991 0.444 0.991 1 0 0.552-0.451 1-0.991 1h-4.018c-0.547 0-0.991-0.444-0.991-1z" />
+        </group>
+    </group>
+</vector>
