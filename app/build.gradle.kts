@@ -14,8 +14,8 @@ android {
         applicationId = "com.codexce.supportchat"
         minSdk = 24
         targetSdk = 35
-        versionCode = 42
-        versionName = "7.0.2"
+        versionCode = 43
+        versionName = "7.0.3"
         vectorDrawables { useSupportLibrary = true }
 
         /*
